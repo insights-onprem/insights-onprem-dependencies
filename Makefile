@@ -55,6 +55,11 @@ build-sources-api-go:
 	$(CONTAINER_CMD) build -t $(SOURCES_IMAGE) $(SOURCES_API_GO_PATH)
 	@echo "Sources API Go image built: $(SOURCES_IMAGE)"
 
+.PHONY: build-sources-api-go-script
+build-sources-api-go-script:
+	@echo "Building Sources API Go image using build script..."
+	cd sources-api-go && CONTAINER_CMD=$(CONTAINER_CMD) REGISTRY=$(REGISTRY) VERSION=$(VERSION) ./build.sh
+
 # Push all images
 .PHONY: push
 push: push-redis push-ingress push-sources-api-go
@@ -154,6 +159,7 @@ help:
 	@echo "  build-redis           - Build Redis ephemeral image"
 	@echo "  build-ingress         - Build Insights Ingress image"
 	@echo "  build-sources-api-go  - Build Sources API Go image"
+	@echo "  build-sources-api-go-script - Build Sources API Go using build script"
 	@echo "  push                  - Push all images to registry"
 	@echo "  push-redis            - Push Redis image to registry"
 	@echo "  push-ingress          - Push Insights Ingress image to registry"
