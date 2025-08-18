@@ -1,62 +1,99 @@
 # Usage Guide - Insights On-Premise Dependencies
 
-This guide provides step-by-step instructions for using the Insights On-Premise Dependencies project to replace external image dependencies.
+This guide provides step-by-step instructions for using the Insights On-Premise Dependencies project to build and deploy custom images for the Insights On-Premise platform.
 
 ## Quick Start
 
-### 1. Clone and Setup
+### 1. Prerequisites Setup
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+# Ensure you have a container runtime installed
+# macOS with Homebrew (recommended):
+brew install podman
+
+# Start podman machine on macOS
+podman machine init
+podman machine start
+
+# Or install Docker
+brew install --cask docker
+```
+
+### 2. Clone Required Repositories
+
+Set up the required directory structure:
+
+```bash
+# Create workspace directory
+mkdir -p ~/dev/insights-onprem
+cd ~/dev/insights-onprem
+
+# Clone this dependencies repository
+git clone git@github.com:insights-onprem/insights-onprem-dependencies.git
+
+# Clone required source repositories
+git clone git@github.com:insights-onprem/insights-ingress-go.git
+git clone git@github.com:insights-onprem/sources-api-go.git
+
+# Verify directory structure
+ls -la
+# Should show:
+# insights-onprem-dependencies/
+# insights-ingress-go/
+# sources-api-go/
+```
+
+### 3. Build All Images
+
+```bash
 cd insights-onprem-dependencies
 
-# Set up development environment
-make dev-setup
-```
+# Build all images with podman (preferred)
+CONTAINER_CMD=podman make build
 
-### 2. Build All Images
-
-```bash
-# Build all images
+# Or with docker
 make build
 
-# Or use the script directly
-./scripts/build-all.sh
+# Check built images
+podman images | grep insights-onprem
 ```
 
-### 3. Test Images
+### 4. Test Images
 
 ```bash
 # Test all images
 make test
 
-# Or test individual images
+# Test individual images
 make test-redis
 make test-ingress
-make test-sources
+make test-sources-api-go
 ```
 
-### 4. Push to Registry
+### 5. Push to Registry (Optional)
 
 ```bash
-# Set registry credentials
-export REGISTRY_USER="your-username"
-export REGISTRY_PASSWORD="your-password"
+# Login to quay.io
+podman login quay.io
 
 # Push all images
 make push
+
+# Or push individual images
+make push-redis
+make push-ingress
+make push-sources-api-go
 ```
 
-### 5. Update ros-ocp-backend
+### 6. Use with ros-ocp-backend
 
 ```bash
 # Copy override file to ros-ocp-backend
 cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
 
-# Use the updated images
+# Start services with custom images
 cd /path/to/ros-ocp-backend/scripts/
-docker-compose up
+podman-compose up -d
 ```
 
 ## Detailed Usage
@@ -64,414 +101,399 @@ docker-compose up
 ### Building Images
 
 #### Build All Images
+
 ```bash
 # Using Makefile (recommended)
 make build
 
-# Using script directly
-./scripts/build-all.sh
+# With custom version
+VERSION=v1.0.0 make build
 
-# With specific version
-VERSION=1.0.0 make build
+# With custom registry
+REGISTRY=my-registry.com/insights make build
+
+# Using podman on macOS
+CONTAINER_CMD=podman make build
 ```
 
 #### Build Individual Images
+
 ```bash
 # Redis ephemeral
 make build-redis
-# or
-./scripts/build-all.sh redis
 
-# Insights Ingress
+# Insights Ingress (requires insights-ingress-go source)
 make build-ingress
-# or
-./scripts/build-all.sh ingress
 
-# Sources API Go
-make build-sources
-# or
-./scripts/build-all.sh sources
+# Sources API Go (requires sources-api-go source)
+make build-sources-api-go
+
+# Sources API Go using enhanced build script
+make build-sources-api-go-script
 ```
 
-#### Custom Build Options
+#### Using Build Scripts Directly
+
 ```bash
-# Build with custom registry
-REGISTRY=my-registry.com/insights make build
+# Insights Ingress
+cd insights-ingress
+./build.sh
 
-# Build with specific version
-VERSION=2.1.0 make build
+# Sources API Go
+cd sources-api-go
+./build.sh
 
-# Build using Podman instead of Docker
-CONTAINER_CMD=podman make build
+# Sources API Go with push
+cd sources-api-go
+./build.sh push
+```
+
+### Environment Configuration
+
+#### Build Configuration Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONTAINER_CMD` | auto-detected | Container runtime (podman/docker) |
+| `REGISTRY` | `quay.io/insights-onprem` | Target registry |
+| `VERSION` | `latest` | Image version tag |
+| `PLATFORM` | `linux/amd64` | Target platform for builds |
+
+#### Examples
+
+```bash
+# Build with custom configuration
+CONTAINER_CMD=podman \
+REGISTRY=my-registry.com/insights \
+VERSION=v2.0.0 \
+make build
+
+# Build for specific platform
+PLATFORM=linux/arm64 make build-sources-api-go-script
 ```
 
 ### Testing Images
 
-#### Comprehensive Testing
+#### Automated Testing
+
 ```bash
 # Test all images
 make test
 
-# Test with cleanup
-make test clean
-```
-
-#### Individual Image Testing
-```bash
-# Test Redis functionality
+# Test specific images
 make test-redis
-
-# Test Ingress endpoints
-make test-ingress
-
-# Test Sources API
-make test-sources
-
-# Test security aspects
-make test-security
+make test-ingress  
+make test-sources-api-go
 ```
 
 #### Manual Testing
+
 ```bash
-# Start Redis container for manual testing
-podman run -d --name manual-redis \
+# Test Redis functionality
+podman run -d --name test-redis \
   -p 6379:6379 \
-  -e REDIS_MAXMEMORY=512mb \
   quay.io/insights-onprem/redis-ephemeral:6
 
 # Test Redis operations
-redis-cli ping
-redis-cli set test "hello world"
-redis-cli get test
+podman exec test-redis redis-cli ping
+podman exec test-redis redis-cli set test "hello"
+podman exec test-redis redis-cli get test
 
 # Clean up
-podman stop manual-redis
-podman rm manual-redis
+podman stop test-redis
+podman rm test-redis
+
+# Test Sources API Go
+podman run --rm \
+  -e SOURCES_ENV=prod \
+  -e ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ \
+  quay.io/insights-onprem/sources-api-go:latest --help
 ```
 
-### Pushing Images
+### Registry Operations
 
-#### Push All Images
+#### Login to Registry
+
 ```bash
-# Set credentials via environment
-export REGISTRY_USER="username"
-export REGISTRY_PASSWORD="password"
+# Login to quay.io
+podman login quay.io
+
+# Or with credentials
+echo $REGISTRY_PASSWORD | podman login -u $REGISTRY_USER --password-stdin quay.io
+```
+
+#### Push Images
+
+```bash
+# Push all images
 make push
 
-# Or use script directly
-./scripts/push-all.sh
-```
-
-#### Push Individual Images
-```bash
-# Push only Redis images
+# Push individual images
 make push-redis
-
-# Push only Ingress image
 make push-ingress
+make push-sources-api-go
 
-# Push only Sources API image
-make push-sources
+# Push with custom registry
+REGISTRY=my-registry.com/insights make push
 ```
 
-#### Verify Pushed Images
+### Integration with ros-ocp-backend
+
+#### Method 1: Docker Compose Override (Recommended)
+
+The project includes a `docker-compose.override.yml` file that automatically replaces upstream images:
+
 ```bash
-# Verify all images are accessible
-make verify
-
-# Or use script
-./scripts/push-all.sh --verify
-```
-
-### Using with ROS OCP Backend
-
-#### Method 1: podman Compose Override (Recommended)
-```bash
-# Copy override file
+# Copy override to ros-ocp-backend
 cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
 
-# Navigate to ros-ocp-backend
+# Start services (override automatically applied)
 cd /path/to/ros-ocp-backend/scripts/
-
-# Start services (override will be automatically applied)
-podman-compose up
+podman-compose up -d
 ```
 
-#### Method 2: Modify Original docker-compose.yml
-```bash
-# Edit ros-ocp-backend/scripts/docker-compose.yml
-# Replace these lines:
+#### Method 2: Direct Image Replacement
+
+If you prefer to modify the original docker-compose.yml:
+
+```yaml
+# In ros-ocp-backend/scripts/docker-compose.yml
+# Replace these image references:
 
 # FROM:
-# redis:
-#   image: quay.io/cloudservices/redis-ephemeral:6
+redis:
+  image: quay.io/cloudservices/redis-ephemeral:6
 
 # TO:
-# redis:
-#   image: quay.io/insights-onprem/redis-ephemeral:6
+redis:
+  image: quay.io/insights-onprem/redis-ephemeral:6
 
-# Similarly for other images:
-# quay.io/cloudservices/insights-ingress:latest -> quay.io/insights-onprem/insights-ingress:latest
-# quay.io/cloudservices/sources-api-go -> quay.io/insights-onprem/sources-api-go:latest
+# Similarly for other services:
+# quay.io/cloudservices/insights-ingress:latest → quay.io/insights-onprem/insights-ingress:latest
+# quay.io/cloudservices/sources-api-go → quay.io/insights-onprem/sources-api-go:latest
 ```
 
-## Configuration
+## macOS Development
 
-### Environment Variables
+### Cross-Platform Building
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REGISTRY` | `quay.io/insights-onprem` | Container registry |
-| `VERSION` | `latest` | Image version tag |
-| `REGISTRY_USER` | - | Registry username |
-| `REGISTRY_PASSWORD` | - | Registry password |
-| `CONTAINER_CMD` | auto-detect | Container runtime (docker/podman) |
-
-### Redis Configuration
-
-Redis can be customized via environment variables:
+All build scripts are optimized for macOS development:
 
 ```bash
-# Start with custom configuration
-podman run -d \
-  -e REDIS_MAXMEMORY=1gb \
-  -e REDIS_MAXMEMORY_POLICY=allkeys-lfu \
-  -e REDIS_PASSWORD=mypassword \
-  quay.io/insights-onprem/redis-ephemeral:6
+# Automatic platform detection (builds linux/amd64 on Apple Silicon)
+cd sources-api-go
+./build.sh
+
+# Explicit platform specification
+PLATFORM=linux/amd64 ./build.sh
+
+# Using podman on macOS
+CONTAINER_CMD=podman ./build.sh
 ```
 
-Available Redis environment variables:
-- `REDIS_PORT` (default: 6379)
-- `REDIS_MAXMEMORY` (default: 256mb)
-- `REDIS_MAXMEMORY_POLICY` (default: allkeys-lru)
-- `REDIS_PASSWORD` (default: none)
-- `REDIS_DATABASES` (default: 16)
-
-## Workflows
-
-### Development Workflow
+### Podman Setup on macOS
 
 ```bash
-# 1. Make changes to Dockerfiles or configurations
-# 2. Build affected images
-make build-redis  # or specific image
+# Install podman
+brew install podman
 
-# 3. Test changes
-make test-redis
+# Initialize and start podman machine
+podman machine init
+podman machine start
 
-# 4. If tests pass, build all
-make build
+# Verify podman is working
+podman info
 
-# 5. Test all
-make test
-
-# 6. Push to registry
-make push
-```
-
-### CI/CD Workflow
-
-```bash
-# Build and test (CI)
-make ci-build
-
-# Deploy (CD)
-make ci-deploy
-```
-
-### Complete Image Workflow
-
-```bash
-# Complete workflow for Redis
-make redis-workflow
-
-# Complete workflow for Ingress
-make ingress-workflow
-
-# Complete workflow for Sources API
-make sources-workflow
-```
-
-### Production Deployment
-
-```bash
-# 1. Build with version tag
-VERSION=1.2.0 make build
-
-# 2. Test thoroughly
-make test
-make test-security
-
-# 3. Tag with version
-make tag-version VERSION=1.2.0
-
-# 4. Push versioned images
-VERSION=1.2.0 make push
-
-# 5. Update deployment configurations
-# 6. Deploy to production
+# Set default container command
+export CONTAINER_CMD=podman
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### Common Build Issues
 
-#### Build Failures
-```bash
-# Check Docker/Podman status
-docker info
-# or
-podman info
+#### Source Repository Missing
 
-# Clean up and retry
-make clean
-make build
+```
+ERROR: sources-api-go source not found at: ../../sources-api-go
 ```
 
-#### Test Failures
+**Solution**: Ensure source repositories are cloned in the parent directory:
 ```bash
-# Check test logs
-make logs-test
+cd ..
+git clone git@github.com:insights-onprem/sources-api-go.git
+git clone git@github.com:insights-onprem/insights-ingress-go.git
+```
 
-# Run individual tests
-make test-redis
+#### Container Runtime Issues
 
-# Clean up test resources
-make clean
+```
+ERROR: No container runtime found
+```
+
+**Solution**: Install and configure container runtime:
+```bash
+# macOS with podman
+brew install podman
+podman machine init && podman machine start
+
+# Or use docker
+brew install --cask docker
+```
+
+#### Build Platform Warnings
+
+```
+WARNING: image platform (linux/amd64) does not match the expected platform
+```
+
+**Solution**: This is expected on Apple Silicon. The build will work correctly for deployment on x86_64 Linux systems.
+
+### Common Runtime Issues
+
+#### Sources API Go Encryption Errors
+
+```
+panic: encryption_key.dev file does not exist
+```
+
+**Solution**: The docker-compose.override.yml sets the required environment variables:
+```yaml
+environment:
+  - ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ
+  - SOURCES_ENV=prod
+```
+
+#### Database Connection Issues
+
+```
+failed to connect to database: hostname resolving error
+```
+
+**Solution**: Ensure all services are running:
+```bash
+podman-compose ps
+podman-compose logs db-sources
+```
+
+### Registry Issues
+
+#### Authentication Failures
+
+```
+Error: unable to retrieve auth token: invalid username/password
+```
+
+**Solution**: Login to the registry:
+```bash
+podman login quay.io
+# Enter your username and password
 ```
 
 #### Push Failures
-```bash
-# Check authentication
-podman login quay.io
 
-# Verify image exists locally
-make info
-
-# Try pushing individual image
-make push-redis
+```
+Error: failed to push image: access denied
 ```
 
-#### Runtime Issues
-```bash
-# Check container logs
-podman logs container-name
-
-# Access container shell
-make shell-redis
-
-# Check health
-podman exec container-name redis-cli ping
-```
-
-### Getting Help
-
-```bash
-# Show available targets
-make help
-
-# Show build information
-make info
-
-# Show documentation
-make docs
-```
+**Solution**: Ensure you have push access to the quay.io/insights-onprem organization.
 
 ## Advanced Usage
 
-### Custom Registry
+### Custom Registry Deployment
 
 ```bash
-# Build for custom registry
-REGISTRY=my-registry.com/myorg make build
+# Build for private registry
+REGISTRY=my-registry.com/insights make build
 
-# Push to custom registry
-REGISTRY=my-registry.com/myorg make push
+# Push to private registry
+REGISTRY=my-registry.com/insights make push
+
+# Update override file for custom registry
+sed -i 's|quay.io/insights-onprem|my-registry.com/insights|g' docker-compose.override.yml
 ```
 
-### Multi-Architecture Builds
+### Version Management
 
 ```bash
-# Enable Docker buildx
-podman buildx create --use
+# Build with semantic version
+VERSION=v1.2.3 make build
 
-# Build for multiple platforms
-podman buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --push \
-  -t quay.io/insights-onprem/redis-ephemeral:6 \
-  redis-ephemeral/
+# Tag and push specific version
+VERSION=v1.2.3 make build push
+
+# Use version in ros-ocp-backend
+# Edit docker-compose.override.yml to use specific tags
 ```
 
-## Integration Examples
+### Development Workflow
 
-### Docker Compose with Custom Configuration
+```bash
+# 1. Make changes to source repositories
+cd ../sources-api-go
+# ... make changes ...
 
-```yaml
-version: "3.8"
-services:
-  redis:
-    image: quay.io/insights-onprem/redis-ephemeral:6
-    ports:
-      - "6379:6379"
-    environment:
-      - REDIS_MAXMEMORY=1gb
-      - REDIS_MAXMEMORY_POLICY=allkeys-lru
-      - REDIS_PASSWORD=secure_password
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "secure_password", "ping"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-```
+# 2. Build and test locally
+cd ../insights-onprem-dependencies
+make build-sources-api-go
+make test-sources-api-go
 
-### Kubernetes Deployment
+# 3. Test integration
+cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
+cd /path/to/ros-ocp-backend/scripts/
+podman-compose up -d
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ephemeral
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis-ephemeral
-  template:
-    metadata:
-      labels:
-        app: redis-ephemeral
-    spec:
-      containers:
-      - name: redis
-        image: quay.io/insights-onprem/redis-ephemeral:6
-        ports:
-        - containerPort: 6379
-        env:
-        - name: REDIS_MAXMEMORY
-          value: "512mb"
-        livenessProbe:
-          exec:
-            command:
-            - redis-cli
-            - ping
-          initialDelaySeconds: 30
-          periodSeconds: 10
+# 4. Push to registry when ready
+make push-sources-api-go
 ```
 
 ## Best Practices
 
 ### Image Management
-- Use specific version tags for production
-- Keep latest tag for development
-- Regularly update base images
-- Scan for security vulnerabilities
+- Use semantic versioning for production releases
+- Keep latest tag for development builds
+- Test images thoroughly before pushing to registry
+- Regularly update base images for security
 
-### Testing
-- Always test after building
-- Use automated testing in CI/CD
-- Test with realistic data volumes
-- Verify health checks work
+### Development
+- Always test locally before pushing
+- Use podman on macOS for better performance
+- Keep source repositories up to date
+- Use the Makefile for consistent builds
 
-This guide covers the essential usage patterns for the Insights On-Premise Dependencies project. For more detailed information, refer to the individual component documentation and the building-images.md guide.
+### Deployment
+- Use docker-compose.override.yml for seamless integration
+- Monitor container resource usage
+- Implement proper health checks
+- Use specific version tags in production
 
+## Available Make Targets
+
+```bash
+# Building
+make build                    # Build all images
+make build-redis              # Build Redis image
+make build-ingress            # Build Insights Ingress image
+make build-sources-api-go     # Build Sources API Go image (direct)
+make build-sources-api-go-script # Build Sources API Go (using script)
+
+# Testing
+make test                     # Test all images
+make test-redis               # Test Redis image
+make test-ingress             # Test Insights Ingress image  
+make test-sources-api-go      # Test Sources API Go image
+
+# Registry operations
+make push                     # Push all images
+make push-redis               # Push Redis image
+make push-ingress             # Push Insights Ingress image
+make push-sources-api-go      # Push Sources API Go image
+
+# Utilities
+make build-push               # Build and push all images
+make clean                    # Remove local images
+make login                    # Login to registry
+make help                     # Show available targets
+```
+
+This guide covers the essential usage patterns for building, testing, and deploying images with the Insights On-Premise Dependencies project.

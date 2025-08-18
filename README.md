@@ -23,29 +23,33 @@ This project replaces external dependencies from `quay.io/cloudservices` with lo
 
 ```
 insights-onprem-dependencies/
-├── README.md
+├── Makefile                         # Main build automation
+├── README.md                        # This file
+├── USAGE_GUIDE.md                   # Detailed usage instructions
 ├── docker-compose.override.yml      # Override for ros-ocp-backend
-├── redis-ephemeral/
+├── redis-ephemeral/                 # Redis ephemeral image build
 │   ├── Dockerfile
 │   ├── README.md
 │   ├── redis.conf
 │   └── docker-entrypoint.sh
-├── insights-ingress/
+├── insights-ingress/                # Insights Ingress image build
 │   ├── Dockerfile
 │   ├── README.md
 │   └── build.sh
-├── sources-api-go/
-│   ├── Dockerfile
-│   ├── README.md
-│   └── build.sh
-├── scripts/
-│   ├── build-all.sh
-│   ├── push-all.sh
-│   └── test-images.sh
-└── docs/
-    ├── building-images.md
-    ├── deployment-guide.md
-    └── troubleshooting.md
+└── sources-api-go/                  # Sources API Go image build
+    ├── README.md
+    └── build.sh
+```
+
+### Source Dependencies
+
+This project builds from source repositories that must be cloned in the parent directory:
+
+```
+insights-onprem/
+├── insights-ingress-go/             # Required: Source for insights-ingress
+├── sources-api-go/                  # Required: Source for sources-api-go
+└── insights-onprem-dependencies/    # This repository
 ```
 
 ## Quick Start
@@ -85,26 +89,29 @@ VERSION=1.0.0 make build
 
 # Build using Podman instead of Docker
 CONTAINER_CMD=podman make build
-./scripts/push-all.sh
+
+# Push all images to registry
+make push
 
 # Test all images
-./scripts/test-images.sh
+make test
 ```
 
 ### Building Individual Images
 
 ```bash
 # Build Redis ephemeral image
-cd redis-ephemeral
-docker build -t quay.io/insights-onprem/redis-ephemeral:6 .
+make build-redis
 
 # Build Insights Ingress image
-cd insights-ingress
-./build.sh
+make build-ingress
+# Or use the build script directly
+cd insights-ingress && ./build.sh
 
 # Build Sources API Go image
-cd sources-api-go
-./build.sh
+make build-sources-api-go
+# Or use the build script directly
+cd sources-api-go && ./build.sh
 ```
 
 ## Usage with ROS OCP Backend
@@ -114,7 +121,7 @@ To use these images with the ros-ocp-backend project, copy the `docker-compose.o
 ```bash
 cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
 cd /path/to/ros-ocp-backend/scripts/
-docker-compose up
+podman-compose up -d
 ```
 
 ## Image Details
@@ -140,18 +147,32 @@ docker-compose up
 
 ## Prerequisites
 
-- Docker or Podman
-- Access to quay.io/insights-onprem organization
-- Git (for cloning source repositories)
+- **Container Runtime**: Docker or Podman (podman preferred)
+- **Registry Access**: Access to quay.io/insights-onprem organization
+- **Git**: For cloning source repositories
+- **Source Repositories**: insights-ingress-go and sources-api-go cloned in parent directory
 
 ## Building Images
 
+Use the Makefile for automated building:
+
+```bash
+# Build all images
+make build
+
+# Build specific images
+make build-redis
+make build-ingress  
+make build-sources-api-go
+
+# Get help
+make help
+```
+
 Each image directory contains:
-- `Dockerfile`: Image build instructions
+- `Dockerfile` or build script: Image build instructions
 - `README.md`: Specific build and usage instructions
 - Additional configuration files as needed
-
-See individual image directories for detailed build instructions.
 
 ## Contributing
 
@@ -172,8 +193,8 @@ All images are built with security best practices:
 ## Support
 
 For issues and questions:
-1. Check the troubleshooting guide in `docs/troubleshooting.md`
-2. Review individual image README files
+1. Review individual image README files
+2. Check the USAGE_GUIDE.md for detailed instructions
 3. Open an issue in this repository
 
 ## License
