@@ -1,0 +1,45 @@
+# Docker Compose Override for Insights On-Premise Dependencies
+# This file overrides the original docker-compose.yml to use quay.io/insights-onprem images
+# 
+# Usage:
+# 1. Copy this file to your ros-ocp-backend/scripts/ directory
+# 2. Run: docker-compose up
+# 
+# Docker Compose will automatically merge this with docker-compose.yml
+
+version: "3.8"
+services:
+  # Override Redis to use insights-onprem image
+  redis:
+    image: quay.io/insights-onprem/redis-ephemeral:6
+    environment:
+      - REDIS_MAXMEMORY=512mb
+      - REDIS_MAXMEMORY_POLICY=allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Override Insights Ingress to use insights-onprem image
+  ingress:
+    image: quay.io/insights-onprem/insights-ingress:latest
+    # All other configuration remains the same
+    
+  # Override Sources API Go to use insights-onprem image
+  sources-api-go:
+    image: quay.io/insights-onprem/sources-api-go:latest
+    environment:
+      - ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ
+      - SOURCES_ENV=prod
+    # All other configuration remains the same
+    
+  # Override Sources DB Setup to use insights-onprem image
+  sources-db-setup:
+    image: quay.io/insights-onprem/sources-api-go:latest
+    environment:
+      - ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ
+      - SOURCES_ENV=prod
+    # All other configuration remains the same
+
