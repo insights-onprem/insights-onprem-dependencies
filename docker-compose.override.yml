@@ -75,3 +75,122 @@ services:
       - SOURCES_ENV=prod
     # All other configuration remains the same
 
+  # ROS-OCP-Backend Services
+  # 1. Processor Service
+  rosocp-processor:
+    image: quay.io/insights-onprem/ros-ocp-backend:latest
+    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start processor"]
+    restart: always
+    environment:
+      - CLOWDER_ENABLED=false
+      - DB_HOST=db-ros
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KRUIZE_HOST=kruize-autotune
+      - KRUIZE_PORT=8080
+      - KRUIZE_WAIT_TIME=120
+      - SERVICE_NAME=rosocp-processor
+      - LOG_LEVEL=INFO
+      - SOURCES_API_BASE_URL=http://sources-api-go:8000
+    depends_on:
+      - db-ros
+      - kafka
+      - kruize-autotune
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/metrics"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # 2. Recommendation Poller Service  
+  rosocp-recommendation-poller:
+    image: quay.io/insights-onprem/ros-ocp-backend:latest
+    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start recommendation-poller"]
+    restart: always
+    environment:
+      - CLOWDER_ENABLED=false
+      - KRUIZE_HOST=kruize-autotune
+      - KRUIZE_PORT=8080
+      - KRUIZE_WAIT_TIME=120
+      - SERVICE_NAME=rosocp-recommendation-poller
+      - LOG_LEVEL=INFO
+      - DB_HOST=db-ros
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DATABASE_URL=postgresql://postgres:postgres@db-ros:5432/postgres?sslmode=disable
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    depends_on:
+      - db-ros
+      - kafka
+      - kruize-autotune
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/metrics"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # 3. API Service
+  rosocp-api:
+    image: quay.io/insights-onprem/ros-ocp-backend:latest
+    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start api"]
+    restart: always
+    ports:
+      - "8001:8000"  # API port
+      - "9001:9000"  # Metrics port
+    environment:
+      - PATH_PREFIX=/api
+      - CLOWDER_ENABLED=false
+      - RBAC_ENABLE=false
+      - DB_POOL_SIZE=10
+      - DB_MAX_OVERFLOW=20
+      - SERVICE_NAME=rosocp-api
+      - LOG_LEVEL=INFO
+      - DB_HOST=db-ros
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DATABASE_URL=postgresql://postgres:postgres@db-ros:5432/postgres?sslmode=disable
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    depends_on:
+      - db-ros
+      - kafka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # 4. Housekeeper Service
+  rosocp-housekeeper:
+    image: quay.io/insights-onprem/ros-ocp-backend:latest
+    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start housekeeper --sources"]
+    restart: always
+    environment:
+      - CLOWDER_ENABLED=false
+      - KRUIZE_HOST=kruize-autotune
+      - KRUIZE_PORT=8080
+      - SERVICE_NAME=rosocp-housekeeper-sources
+      - LOG_LEVEL=INFO
+      - DB_HOST=db-ros
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DATABASE_URL=postgresql://postgres:postgres@db-ros:5432/postgres?sslmode=disable
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SOURCES_API_BASE_URL=http://sources-api-go:8000
+    depends_on:
+      - db-ros
+      - kafka
+      - kruize-autotune
+      - sources-api-go
+
