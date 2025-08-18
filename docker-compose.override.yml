@@ -31,17 +31,6 @@ services:
   sources-api-go:
     image: quay.io/insights-onprem/sources-api-go:latest
     environment:
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_HOST=db-sources
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=sources_api_development
-      - LOG_LEVEL=DEBUG
-      - REDIS_CACHE_HOST=redis
-      - REDIS_CACHE_PORT=6379
-      - BYPASS_RBAC=true
-      - QUEUE_HOST=kafka
-      - QUEUE_PORT=29092
       - ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ
       - SOURCES_ENV=prod
     # All other configuration remains the same
@@ -67,17 +56,6 @@ services:
     restart: "no"
     command: "echo 'Database already initialized, skipping setup'"
     environment:
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_HOST=db-sources
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=sources_api_development
-      - LOG_LEVEL=DEBUG
-      - REDIS_CACHE_HOST=redis
-      - REDIS_CACHE_PORT=6379
-      - BYPASS_RBAC=true
-      - QUEUE_HOST=kafka
-      - QUEUE_PORT=29092
       - ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ
       - SOURCES_ENV=prod
     # All other configuration remains the same
