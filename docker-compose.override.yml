@@ -48,7 +48,22 @@ services:
     
   # For Zookeeper mode, we need to use the 7.5.3 Kafka image
   kafka:
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     image: confluentinc/cp-kafka:7.5.3
+
+  # Add health check for kruize-autotune service
+  kruize-autotune:
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/listPerformanceProfiles || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   kafka-create-topics:
     image: confluentinc/cp-kafka:7.5.3
@@ -79,7 +94,7 @@ services:
   # 1. Processor Service
   rosocp-processor:
     image: quay.io/insights-onprem/ros-ocp-backend:latest
-    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start processor"]
+    command: ["sh", "-c", "echo 'Waiting for dependencies (Kafka, Kruize) to be ready...' && sleep 60 && echo 'Starting processor...' && ./rosocp db migrate up && ./rosocp start processor"]
     restart: always
     environment:
       - CLOWDER_ENABLED=false
@@ -89,6 +104,9 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_CONSUMER_GROUP_ID=rosocp-processor
+      - KAFKA_AUTO_COMMIT=true
+      - UPLOAD_TOPIC=hccm.ros.events
       - KRUIZE_HOST=kruize-autotune
       - KRUIZE_PORT=8080
       - KRUIZE_WAIT_TIME=120
@@ -109,7 +127,7 @@ services:
   # 2. Recommendation Poller Service  
   rosocp-recommendation-poller:
     image: quay.io/insights-onprem/ros-ocp-backend:latest
-    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start recommendation-poller"]
+    command: ["sh", "-c", "echo 'Waiting for dependencies (Kafka, Kruize) to be ready...' && sleep 60 && echo 'Starting recommendation-poller...' && ./rosocp db migrate up && ./rosocp start recommendation-poller"]
     restart: always
     environment:
       - CLOWDER_ENABLED=false
@@ -125,6 +143,9 @@ services:
       - DB_PASSWORD=postgres
       - DATABASE_URL=postgresql://postgres:postgres@db-ros:5432/postgres?sslmode=disable
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_CONSUMER_GROUP_ID=rosocp-recommendation-poller
+      - KAFKA_AUTO_COMMIT=false
+      - RECOMMENDATION_TOPIC=rosocp.kruize.recommendations
     depends_on:
       - db-ros
       - kafka
@@ -172,7 +193,7 @@ services:
   # 4. Housekeeper Service
   rosocp-housekeeper:
     image: quay.io/insights-onprem/ros-ocp-backend:latest
-    command: ["sh", "-c", "./rosocp db migrate up && ./rosocp start housekeeper --sources"]
+    command: ["sh", "-c", "echo 'Waiting for dependencies (Kafka) to be ready...' && sleep 60 && echo 'Starting housekeeper...' && ./rosocp db migrate up && ./rosocp start housekeeper --sources"]
     restart: always
     environment:
       - CLOWDER_ENABLED=false
