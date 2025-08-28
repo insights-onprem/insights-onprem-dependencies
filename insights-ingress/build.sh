@@ -75,6 +75,7 @@ log_info "Dockerfile: $DOCKERFILE_PATH"
 # Build the image
 log_info "Starting Docker build..."
 $CONTAINER_CMD build \
+    --platform linux/amd64 \
     -t "$IMAGE_NAME" \
     -f "$DOCKERFILE_PATH" \
     "$INSIGHTS_INGRESS_GO_PATH"

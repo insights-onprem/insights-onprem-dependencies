@@ -1,7 +1,7 @@
 # Redis Ephemeral Image for Insights On-Premise
 # Based on Redis 6 with ephemeral storage configuration
 
-FROM redis:6-alpine
+FROM --platform=linux/amd64 redis:6-alpine
 
 # Metadata
 LABEL maintainer="Insights On-Premise Team"

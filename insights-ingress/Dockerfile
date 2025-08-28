@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/go-toolset:latest as builder
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/go-toolset:latest as builder
 
 WORKDIR /go/src/app
 
@@ -23,7 +23,7 @@ RUN go get -d ./... && \
 
 RUN cp /go/src/app/insights-ingress-go /usr/bin/
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 WORKDIR /
 
