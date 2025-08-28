@@ -26,7 +26,6 @@ insights-onprem-dependencies/
 ├── Makefile                         # Main build automation
 ├── README.md                        # This file
 ├── USAGE_GUIDE.md                   # Detailed usage instructions
-├── docker-compose.override.yml      # Override for ros-ocp-backend
 ├── redis-ephemeral/                 # Redis ephemeral image build
 │   ├── Dockerfile
 │   ├── README.md
@@ -112,16 +111,6 @@ cd insights-ingress && ./build.sh
 make build-sources-api-go
 # Or use the build script directly
 cd sources-api-go && ./build.sh
-```
-
-## Usage with ROS OCP Backend
-
-To use these images with the ros-ocp-backend project, copy the `docker-compose.override.yml` file to the ros-ocp-backend/scripts directory:
-
-```bash
-cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
-cd /path/to/ros-ocp-backend/scripts/
-podman-compose up -d
 ```
 
 ## Image Details

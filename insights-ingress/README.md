@@ -159,7 +159,7 @@ docker build --dry-run -f insights-ingress/Dockerfile ../insights-ingress-go
 
 ### Docker Compose
 
-The built image is designed to work with the provided `docker-compose.override.yml`:
+The built image is designed to work with ros-ocp-backend by updating the docker-compose.yml:
 
 ```yaml
 services:

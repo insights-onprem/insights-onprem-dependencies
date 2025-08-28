@@ -153,9 +153,9 @@ The Sources API Go service requires these environment variables when running:
 
 ## Docker Compose Integration
 
-### Override Configuration
+### Docker Compose Configuration
 
-This project includes `docker-compose.override.yml` in the root directory for seamless integration with ros-ocp-backend:
+For integration with ros-ocp-backend, update the docker-compose.yml file to use the locally built image:
 
 ```yaml
 services:
@@ -174,9 +174,11 @@ services:
 
 ### Usage with ros-ocp-backend
 
-1. **Copy the override file**:
+1. **Update the docker-compose.yml file**:
    ```bash
-   cp ../docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
+   # Edit /path/to/ros-ocp-backend/scripts/docker-compose.yml
+   # Replace: quay.io/cloudservices/sources-api-go
+   # With: quay.io/insights-onprem/sources-api-go:latest
    ```
 
 2. **Start services**:
@@ -185,7 +187,7 @@ services:
    podman-compose up -d
    ```
 
-The override automatically replaces `quay.io/cloudservices/sources-api-go` with the locally built `quay.io/insights-onprem/sources-api-go:latest`.
+This replaces `quay.io/cloudservices/sources-api-go` with the locally built `quay.io/insights-onprem/sources-api-go:latest`.
 
 ## Image Details
 
