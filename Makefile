@@ -4,7 +4,7 @@
 # Configuration
 REGISTRY ?= quay.io/insights-onprem
 VERSION ?= latest
-CONTAINER_CMD ?= docker
+CONTAINER_CMD ?= podman
 
 # Image names
 REDIS_IMAGE = $(REGISTRY)/redis-ephemeral:6
@@ -30,7 +30,7 @@ build: build-redis build-ingress build-sources-api-go
 .PHONY: build-redis
 build-redis:
 	@echo "Building Redis ephemeral image..."
-	$(CONTAINER_CMD) build -t $(REDIS_IMAGE) $(REDIS_PATH)
+	$(CONTAINER_CMD) build --platform linux/amd64 -t $(REDIS_IMAGE) $(REDIS_PATH)
 	@echo "Redis image built: $(REDIS_IMAGE)"
 
 .PHONY: build-ingress
@@ -41,7 +41,7 @@ build-ingress:
 		echo "Please ensure insights-ingress-go is cloned in the parent directory"; \
 		exit 1; \
 	fi
-	$(CONTAINER_CMD) build -t $(INGRESS_IMAGE) -f $(INGRESS_PATH)/Dockerfile $(INSIGHTS_INGRESS_GO_PATH)
+	$(CONTAINER_CMD) build --platform linux/amd64 -t $(INGRESS_IMAGE) -f $(INGRESS_PATH)/Dockerfile $(INSIGHTS_INGRESS_GO_PATH)
 	@echo "Insights Ingress image built: $(INGRESS_IMAGE)"
 
 .PHONY: build-sources-api-go
@@ -52,7 +52,7 @@ build-sources-api-go:
 		echo "Please ensure sources-api-go is cloned in the parent directory"; \
 		exit 1; \
 	fi
-	$(CONTAINER_CMD) build -t $(SOURCES_IMAGE) $(SOURCES_API_GO_PATH)
+	$(CONTAINER_CMD) build --platform linux/amd64 -t $(SOURCES_IMAGE) $(SOURCES_API_GO_PATH)
 	@echo "Sources API Go image built: $(SOURCES_IMAGE)"
 
 .PHONY: build-sources-api-go-script
@@ -176,10 +176,10 @@ help:
 	@echo "Configuration:"
 	@echo "  REGISTRY       - Registry to push to (default: quay.io/insights-onprem)"
 	@echo "  VERSION        - Image version tag (default: latest)"
-	@echo "  CONTAINER_CMD  - Container command (default: docker)"
+	@echo "  CONTAINER_CMD  - Container command (default: podman)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build"
 	@echo "  REGISTRY_USER=myuser REGISTRY_PASSWORD=mypass make login"
 	@echo "  VERSION=1.0.0 make build-push"
-	@echo "  CONTAINER_CMD=podman make build"
+	@echo "  CONTAINER_CMD=docker make build"
