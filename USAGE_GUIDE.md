@@ -88,8 +88,11 @@ make push-sources-api-go
 ### 6. Use with ros-ocp-backend
 
 ```bash
-# Copy override file to ros-ocp-backend
-cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
+# Update ros-ocp-backend docker-compose.yml to use custom images
+# Replace image references:
+# quay.io/cloudservices/redis-ephemeral:6 → quay.io/insights-onprem/redis-ephemeral:6
+# quay.io/cloudservices/insights-ingress:latest → quay.io/insights-onprem/insights-ingress:latest
+# quay.io/cloudservices/sources-api-go → quay.io/insights-onprem/sources-api-go:latest
 
 # Start services with custom images
 cd /path/to/ros-ocp-backend/scripts/
@@ -239,22 +242,9 @@ REGISTRY=my-registry.com/insights make push
 
 ### Integration with ros-ocp-backend
 
-#### Method 1: Docker Compose Override (Recommended)
+#### Direct Image Replacement
 
-The project includes a `docker-compose.override.yml` file that automatically replaces upstream images:
-
-```bash
-# Copy override to ros-ocp-backend
-cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
-
-# Start services (override automatically applied)
-cd /path/to/ros-ocp-backend/scripts/
-podman-compose up -d
-```
-
-#### Method 2: Direct Image Replacement
-
-If you prefer to modify the original docker-compose.yml:
+To use the locally built images, modify the original docker-compose.yml:
 
 ```yaml
 # In ros-ocp-backend/scripts/docker-compose.yml
@@ -357,7 +347,7 @@ WARNING: image platform (linux/amd64) does not match the expected platform
 panic: encryption_key.dev file does not exist
 ```
 
-**Solution**: The docker-compose.override.yml sets the required environment variables:
+**Solution**: Set the required environment variables in your docker-compose.yml:
 ```yaml
 environment:
   - ENCRYPTION_KEY=YWFhYWFhYWFhYWFhYWFhYQ
@@ -409,8 +399,8 @@ REGISTRY=my-registry.com/insights make build
 # Push to private registry
 REGISTRY=my-registry.com/insights make push
 
-# Update override file for custom registry
-sed -i 's|quay.io/insights-onprem|my-registry.com/insights|g' docker-compose.override.yml
+# Update docker-compose.yml for custom registry
+sed -i 's|quay.io/insights-onprem|my-registry.com/insights|g' /path/to/ros-ocp-backend/scripts/docker-compose.yml
 ```
 
 ### Version Management
@@ -423,7 +413,7 @@ VERSION=v1.2.3 make build
 VERSION=v1.2.3 make build push
 
 # Use version in ros-ocp-backend
-# Edit docker-compose.override.yml to use specific tags
+# Edit docker-compose.yml to use specific tags
 ```
 
 ### Development Workflow
@@ -439,7 +429,7 @@ make build-sources-api-go
 make test-sources-api-go
 
 # 3. Test integration
-cp docker-compose.override.yml /path/to/ros-ocp-backend/scripts/
+# Update ros-ocp-backend/scripts/docker-compose.yml with new image
 cd /path/to/ros-ocp-backend/scripts/
 podman-compose up -d
 
@@ -462,7 +452,7 @@ make push-sources-api-go
 - Use the Makefile for consistent builds
 
 ### Deployment
-- Use docker-compose.override.yml for seamless integration
+- Update docker-compose.yml files to reference local images
 - Monitor container resource usage
 - Implement proper health checks
 - Use specific version tags in production

@@ -160,6 +160,8 @@ if [ "$1" != "push" ] && [ "$PUSH" != "true" ]; then
     log_info "  $CONTAINER_CMD run --rm -p 8080:8000 $IMAGE_NAME"
     echo ""
     log_info "For integration with ros-ocp-backend:"
-    log_info "  Copy ../docker-compose.override.yml to ros-ocp-backend/scripts/"
+    log_info "  Update ros-ocp-backend/scripts/docker-compose.yml to use this image"
+    log_info "  Replace: quay.io/cloudservices/sources-api-go"
+    log_info "  With: quay.io/insights-onprem/sources-api-go:latest"
     log_info "  Run: podman-compose up -d"
 fi
