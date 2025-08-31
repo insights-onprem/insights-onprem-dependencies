@@ -10,12 +10,14 @@ CONTAINER_CMD ?= podman
 REDIS_IMAGE = $(REGISTRY)/redis-ephemeral:6
 INGRESS_IMAGE = $(REGISTRY)/insights-ingress:$(VERSION)
 SOURCES_IMAGE = $(REGISTRY)/sources-api-go:$(VERSION)
+POSTGRESQL_IMAGE = $(REGISTRY)/postgresql:16
 
 # Build context paths
 INSIGHTS_INGRESS_GO_PATH = ../insights-ingress-go
 SOURCES_API_GO_PATH = ../sources-api-go
 REDIS_PATH = ./redis-ephemeral
 INGRESS_PATH = ./insights-ingress
+POSTGRESQL_PATH = ./postgresql
 
 # Default target
 .PHONY: all
@@ -23,7 +25,7 @@ all: build
 
 # Build all images
 .PHONY: build
-build: build-redis build-ingress build-sources-api-go
+build: build-redis build-ingress build-sources-api-go build-postgresql
 	@echo "All images built successfully"
 
 # Build individual images
@@ -60,9 +62,15 @@ build-sources-api-go-script:
 	@echo "Building Sources API Go image using build script..."
 	cd sources-api-go && CONTAINER_CMD=$(CONTAINER_CMD) REGISTRY=$(REGISTRY) VERSION=$(VERSION) ./build.sh
 
+.PHONY: build-postgresql
+build-postgresql:
+	@echo "Building PostgreSQL 16 image..."
+	$(CONTAINER_CMD) build --platform linux/amd64 -t $(POSTGRESQL_IMAGE) $(POSTGRESQL_PATH)
+	@echo "PostgreSQL image built: $(POSTGRESQL_IMAGE)"
+
 # Push all images
 .PHONY: push
-push: push-redis push-ingress push-sources-api-go
+push: push-redis push-ingress push-sources-api-go push-postgresql
 	@echo "All images pushed successfully"
 
 .PHONY: push-redis
@@ -83,13 +91,19 @@ push-sources-api-go:
 	$(CONTAINER_CMD) push $(SOURCES_IMAGE)
 	@echo "Sources API Go image pushed: $(SOURCES_IMAGE)"
 
+.PHONY: push-postgresql
+push-postgresql:
+	@echo "Pushing PostgreSQL image..."
+	$(CONTAINER_CMD) push $(POSTGRESQL_IMAGE)
+	@echo "PostgreSQL image pushed: $(POSTGRESQL_IMAGE)"
+
 # Build and push in one command
 .PHONY: build-push
 build-push: build push
 
 # Test images locally
 .PHONY: test
-test: test-redis test-ingress test-sources-api-go
+test: test-redis test-ingress test-sources-api-go test-postgresql
 
 .PHONY: test-redis
 test-redis:
@@ -128,6 +142,18 @@ test-sources-api-go:
 	fi
 	@$(CONTAINER_CMD) stop test-sources-api-go > /dev/null
 
+.PHONY: test-postgresql
+test-postgresql:
+	@echo "Testing PostgreSQL image..."
+	$(CONTAINER_CMD) run --rm -d --name test-postgresql -p 5433:5432 -e POSTGRES_PASSWORD=testpass $(POSTGRESQL_IMAGE) > /dev/null
+	@sleep 15
+	@if $(CONTAINER_CMD) exec test-postgresql pg_isready -U postgres | grep -q "accepting connections"; then \
+		echo "✓ PostgreSQL test passed"; \
+	else \
+		echo "✗ PostgreSQL test failed"; \
+	fi
+	@$(CONTAINER_CMD) stop test-postgresql > /dev/null
+
 # Clean up local images
 .PHONY: clean
 clean:
@@ -135,6 +161,7 @@ clean:
 	-$(CONTAINER_CMD) rmi $(REDIS_IMAGE) 2>/dev/null || true
 	-$(CONTAINER_CMD) rmi $(INGRESS_IMAGE) 2>/dev/null || true
 	-$(CONTAINER_CMD) rmi $(SOURCES_IMAGE) 2>/dev/null || true
+	-$(CONTAINER_CMD) rmi $(POSTGRESQL_IMAGE) 2>/dev/null || true
 	@echo "Local images cleaned"
 
 # Login to registry
@@ -160,15 +187,18 @@ help:
 	@echo "  build-ingress         - Build Insights Ingress image"
 	@echo "  build-sources-api-go  - Build Sources API Go image"
 	@echo "  build-sources-api-go-script - Build Sources API Go using build script"
+	@echo "  build-postgresql      - Build PostgreSQL 16 image"
 	@echo "  push                  - Push all images to registry"
 	@echo "  push-redis            - Push Redis image to registry"
 	@echo "  push-ingress          - Push Insights Ingress image to registry"
 	@echo "  push-sources-api-go   - Push Sources API Go image to registry"
+	@echo "  push-postgresql       - Push PostgreSQL image to registry"
 	@echo "  build-push            - Build and push all images"
 	@echo "  test                  - Test all images"
 	@echo "  test-redis            - Test Redis image"
 	@echo "  test-ingress          - Test Insights Ingress image"
 	@echo "  test-sources-api-go   - Test Sources API Go image"
+	@echo "  test-postgresql       - Test PostgreSQL image"
 	@echo "  clean                 - Remove local images"
 	@echo "  login                 - Login to registry"
 	@echo "  help                  - Show this help"
