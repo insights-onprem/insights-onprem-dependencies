@@ -11,6 +11,7 @@ REDIS_IMAGE = $(REGISTRY)/redis-ephemeral:6
 INGRESS_IMAGE = $(REGISTRY)/insights-ingress:$(VERSION)
 SOURCES_IMAGE = $(REGISTRY)/sources-api-go:$(VERSION)
 POSTGRESQL_IMAGE = $(REGISTRY)/postgresql:16
+NGINX_IMAGE = $(REGISTRY)/nginx:$(VERSION)
 
 # Build context paths
 INSIGHTS_INGRESS_GO_PATH = ../insights-ingress-go
@@ -18,6 +19,7 @@ SOURCES_API_GO_PATH = ../sources-api-go
 REDIS_PATH = ./redis-ephemeral
 INGRESS_PATH = ./insights-ingress
 POSTGRESQL_PATH = ./postgresql
+NGINX_PATH = ./nginx
 
 # Default target
 .PHONY: all
@@ -25,7 +27,7 @@ all: build
 
 # Build all images
 .PHONY: build
-build: build-redis build-ingress build-sources-api-go build-postgresql
+build: build-redis build-ingress build-sources-api-go build-postgresql build-nginx
 	@echo "All images built successfully"
 
 # Build individual images
@@ -68,9 +70,15 @@ build-postgresql:
 	$(CONTAINER_CMD) build --platform linux/amd64 -t $(POSTGRESQL_IMAGE) $(POSTGRESQL_PATH)
 	@echo "PostgreSQL image built: $(POSTGRESQL_IMAGE)"
 
+.PHONY: build-nginx
+build-nginx:
+	@echo "Building NGINX image..."
+	$(CONTAINER_CMD) build --platform linux/amd64 -t $(NGINX_IMAGE) $(NGINX_PATH)
+	@echo "NGINX image built: $(NGINX_IMAGE)"
+
 # Push all images
 .PHONY: push
-push: push-redis push-ingress push-sources-api-go push-postgresql
+push: push-redis push-ingress push-sources-api-go push-postgresql push-nginx
 	@echo "All images pushed successfully"
 
 .PHONY: push-redis
@@ -97,13 +105,19 @@ push-postgresql:
 	$(CONTAINER_CMD) push $(POSTGRESQL_IMAGE)
 	@echo "PostgreSQL image pushed: $(POSTGRESQL_IMAGE)"
 
+.PHONY: push-nginx
+push-nginx:
+	@echo "Pushing NGINX image..."
+	$(CONTAINER_CMD) push $(NGINX_IMAGE)
+	@echo "NGINX image pushed: $(NGINX_IMAGE)"
+
 # Build and push in one command
 .PHONY: build-push
 build-push: build push
 
 # Test images locally
 .PHONY: test
-test: test-redis test-ingress test-sources-api-go test-postgresql
+test: test-redis test-ingress test-sources-api-go test-postgresql test-nginx
 
 .PHONY: test-redis
 test-redis:
@@ -154,6 +168,18 @@ test-postgresql:
 	fi
 	@$(CONTAINER_CMD) stop test-postgresql > /dev/null
 
+.PHONY: test-nginx
+test-nginx:
+	@echo "Testing NGINX image..."
+	$(CONTAINER_CMD) run --rm -d --name test-nginx -p 8081:80 $(NGINX_IMAGE) > /dev/null
+	@sleep 5
+	@if curl -f http://localhost:8081 > /dev/null 2>&1; then \
+		echo "✓ NGINX test passed"; \
+	else \
+		echo "✗ NGINX test failed"; \
+	fi
+	@$(CONTAINER_CMD) stop test-nginx > /dev/null
+
 # Clean up local images
 .PHONY: clean
 clean:
@@ -162,6 +188,7 @@ clean:
 	-$(CONTAINER_CMD) rmi $(INGRESS_IMAGE) 2>/dev/null || true
 	-$(CONTAINER_CMD) rmi $(SOURCES_IMAGE) 2>/dev/null || true
 	-$(CONTAINER_CMD) rmi $(POSTGRESQL_IMAGE) 2>/dev/null || true
+	-$(CONTAINER_CMD) rmi $(NGINX_IMAGE) 2>/dev/null || true
 	@echo "Local images cleaned"
 
 # Login to registry
@@ -188,17 +215,20 @@ help:
 	@echo "  build-sources-api-go  - Build Sources API Go image"
 	@echo "  build-sources-api-go-script - Build Sources API Go using build script"
 	@echo "  build-postgresql      - Build PostgreSQL 16 image"
+	@echo "  build-nginx           - Build NGINX image"
 	@echo "  push                  - Push all images to registry"
 	@echo "  push-redis            - Push Redis image to registry"
 	@echo "  push-ingress          - Push Insights Ingress image to registry"
 	@echo "  push-sources-api-go   - Push Sources API Go image to registry"
 	@echo "  push-postgresql       - Push PostgreSQL image to registry"
+	@echo "  push-nginx            - Push NGINX image to registry"
 	@echo "  build-push            - Build and push all images"
 	@echo "  test                  - Test all images"
 	@echo "  test-redis            - Test Redis image"
 	@echo "  test-ingress          - Test Insights Ingress image"
 	@echo "  test-sources-api-go   - Test Sources API Go image"
 	@echo "  test-postgresql       - Test PostgreSQL image"
+	@echo "  test-nginx            - Test NGINX image"
 	@echo "  clean                 - Remove local images"
 	@echo "  login                 - Login to registry"
 	@echo "  help                  - Show this help"
